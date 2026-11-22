@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DayFlow PWA</title>
+<script>
+  /* GitHub Pages отдаёт 404.html на любой прямой вложенный адрес.
+     Вычисляем корень репозитория (/repo-name/ или /) без относительного './index.html',
+     чтобы никогда не попасть в бесконечный редирект. */
+  (function () {
+    var first = location.pathname.split('/').filter(Boolean)[0] || '';
+    var root = (first && first.indexOf('.') === -1) ? '/' + first + '/' : '/';
+    if (location.pathname === root) return;
+    location.replace(root + (location.hash || ''));
+  })();
+</script>
+</head>
+<body></body>
+</html>

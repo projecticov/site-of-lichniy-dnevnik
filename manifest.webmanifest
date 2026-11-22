@@ -1,0 +1,38 @@
+{
+  "name": "Vivere — дни, которые хочется помнить",
+  "short_name": "Vivere",
+  "description": "Дневник атмосферы дня: текст, фото и песня превращаются в воспоминание. Работает офлайн.",
+  "lang": "ru",
+  "dir": "ltr",
+  "start_url": "./index.html",
+  "scope": "./",
+  "id": "vivere-diary-pwa",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "portrait",
+  "background_color": "#eceef4",
+  "theme_color": "#eceef4",
+  "categories": ["lifestyle", "photo"],
+  "icons": [
+    { "src": "./pwa/icons/icon-32.png", "sizes": "32x32", "type": "image/png", "purpose": "any" },
+    { "src": "./pwa/icons/icon-180.png", "sizes": "180x180", "type": "image/png", "purpose": "any" },
+    { "src": "./pwa/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "./pwa/icons/icon-384.png", "sizes": "384x384", "type": "image/png", "purpose": "any" },
+    { "src": "./pwa/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "./pwa/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    {
+      "name": "Новый день",
+      "short_name": "Создать",
+      "url": "./index.html#/new",
+      "icons": [{ "src": "./pwa/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Папки дней",
+      "short_name": "Папки",
+      "url": "./index.html#/folders",
+      "icons": [{ "src": "./pwa/icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}
