@@ -756,6 +756,22 @@ body{background:#dfe1ea;color:var(--fg);font-family:var(--f-ui)}
 
 @media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;animation-iteration-count:1!important;transition:none!important}}
 
+/* ================= PWA: контраст «Стиля» по правилу из гайдов =================
+   Каждый модификатор обязан задавать И фон, И контрастный цвет —
+   иначе неактивные кнопки прозрачны и текст сливается с подложкой. */
+.opts button{background:#ffffff;color:#131418;border:1px solid rgba(28,32,52,.10)}
+.opts button:not(.on){background:#ffffff;color:#131418}
+.opts button.on{background:#131418;color:#ffffff}
+html[data-theme='dark'] .opts button{background:#262936;color:#f4f6fb}
+html[data-theme='dark'] .opts button.on{background:#f4f6fb;color:#131418}
+/* карточки-превью и чипы шрифтов */
+.jpanel button, .fonts button:not(.on){background:#ffffff;color:#131418}
+.jpanel button.on, .fonts button.on{background:#131418;color:#ffffff}
+.jtools .ibtn{background:#ffffff;color:#131418}
+.jtools .ibtn.on{background:#131418;color:#ffffff}
+/* счётчик дня на плитке — текст поверх затемнённой фотографии */
+.gt .gd{background:rgba(0,0,0,.45);color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.5)}
+
 </style>
 </head>
 <body>
@@ -1026,16 +1042,49 @@ body{background:#dfe1ea;color:var(--fg);font-family:var(--f-ui)}
       let n = 0;
       const iv = setInterval(() => { if (wireCapacitor() || ++n > 40) clearInterval(iv); }, 150);
     }
-    /* PWA / браузер: popstate */
-    window.addEventListener('popstate', function () {
-      if (hasOverlay()) { closeOverlay(); ensureGuard(); return; }
-      if (!onHome()) { goHome(); ensureGuard(); return; }
+    /* PWA / браузер: popstate + hashchange (Android-«назад» двигает историю) */
+    function routeFromHash() {
+      const h = String(location.hash || '');
+      const dayMatch = h.match(/^#\/day\/(.+)$/);
+      if (dayMatch) {
+        const id = decodeURIComponent(dayMatch[1]);
+        const core = window.__vivereCore || {};
+        const days = (core.DAYS) || window.DAYS || [];
+        if (days.some((d) => d.id === id)) {
+          try { if (window.A && A.open) A.open(id); } catch (_) {}
+          return true;
+        }
+        return false;
+      }
+      if (h === '' || h === '#/' || h === '#') { goHome(); return true; }
+      return false;
+    }
+
+    function onBackEvent() {
+      /* 1. шторка/меню */
+      if (hasOverlay()) { closeOverlay(); ensureGuard(); return true; }
+      /* 2. вложенный маршрут -> главная */
+      if (location.hash && location.hash !== '#/' && location.hash !== '#') {
+        goHome();
+        try { history.replaceState({ vvGuard: true }, '', '#/'); } catch (_) {}
+        ensureGuard();
+        return true;
+      }
+      /* 3. уже на главной */
+      if (!onHome()) { goHome(); ensureGuard(); return true; }
       const now = Date.now();
-      if (now - lastBackAt < 2000) return;   /* второе нажатие — выходим штатно */
+      if (now - lastBackAt < 2000) return false;   /* второе нажатие — выходим штатно */
       lastBackAt = now;
       toast('Ещё раз «назад» — выйти из Vivere');
       ensureGuard();
+      return true;
+    }
+
+    window.addEventListener('popstate', function () {
+      if (routeFromHash()) { ensureGuard(); return; }
+      onBackEvent();
     });
+    window.addEventListener('hashchange', function () { routeFromHash(); });
   }
 
   /* Service Worker: без «выдёргивания» экрана из-под пальцев */
@@ -1335,7 +1384,7 @@ function card(d){const f=flt(d.filter),t=trk(d.track),pal=palOf(d);const ar=S.cf
   ${t?`<div class="songrow"><span class="eq still"><i></i><i></i><i></i><i></i></span>${esc(t.t)} — ${esc(t.a)}<span class="pal">${pal.map(c=>`<i style="background:${c}"></i>`).join('')}</span></div>`:''}</div></button>`}
 function tabbar(on){const t=(id,ic,l)=>`<button class="tab ${on===id?'on':''}" data-a="tab" data-v="${id}">${ic}<span>${l}</span></button>`;
   return `<nav class="tabbar">${t('home',IC.book,'Дневник')}${t('calendar',IC.cal,'Календарь')}<button class="tab plus" data-a="newDay" aria-label="Новый день"><span>${IC.plus}</span></button>${t('folders',IC.folder,'Папки')}${t('style',IC.brush,'Стиль')}</nav>`}
-A.tab=v=>{S.tab=v;go(v)};
+A.tab=v=>{S.tab=v;try{if(location.hash&&location.hash!=='#/')history.pushState({vvGuard:true},'','#/')}catch(e){}go(v)};
 A.closeSheet=()=>closeSheet();
 
 /* ---------- archive (home) ---------- */
@@ -1406,7 +1455,7 @@ function stickerHTML(l,day){const t=trk(day.track),x=fmt(day.date);
   return ''}
 function slideDur(d){const t=trk(d.track);if(!t)return 5000;return t.bpm>110?3200:t.bpm>85?4600:6500}
 
-A.open=id=>{const d=DAYS.find(x=>x.id===id);if(!d)return;S.v={id,i:0,t:null,paused:false};go('viewer')};
+A.open=id=>{const d=DAYS.find(x=>x.id===id);if(!d)return;S.v={id,i:0,t:null,paused:false};try{history.pushState({vvGuard:true,day:id},'','#/day/'+encodeURIComponent(id))}catch(e){}go('viewer')};
 SCREENS.viewer=()=>{const d=DAYS.find(x=>x.id===S.v.id),t=trk(d.track),x=fmt(d.date);
   app.innerHTML=`<section class="screen viewer"><div class="vstage" id="vstage"></div>
   <div class="slidebar" id="vbar" style="top:10px">${d.photos.map(()=>'<i><b></b></i>').join('')}</div>
