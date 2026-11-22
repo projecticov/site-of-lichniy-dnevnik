@@ -1116,6 +1116,35 @@ html[data-theme='dark'] .drow .drGo{background:rgba(244,246,251,.92);color:#1314
 .sheet .pillbtn{background:rgba(255,255,255,.14);color:#f5f5f7}
 .sheet .pillbtn.sk,.sheet .pillbtn.white{background:#f5f5f7;color:#131418}
 
+/* ============== ПАПКИ: дуга как в референсе, но с читаемым текстом ============== */
+/* полоса с пользовательскими папками над дугой — не ломает flex-раскладку */
+.arcTop{flex:none;padding-top:4px}
+.arcwrap{-webkit-mask-image:linear-gradient(180deg,transparent 0,#000 9%,#000 91%,transparent 100%);
+  mask-image:linear-gradient(180deg,transparent 0,#000 9%,#000 91%,transparent 100%)}
+.arc{will-change:transform,opacity}
+.arc .disc{transition:box-shadow .2s}
+.arc.center .disc{box-shadow:0 16px 34px rgba(40,44,70,.34),0 0 0 4px rgba(255,255,255,.85)}
+.arc b{color:#131418;text-shadow:0 1px 0 rgba(255,255,255,.65)}
+.arc span{color:#5a5f72}
+.arc .go{background:#131418;color:#fff;border:0;box-shadow:0 8px 18px rgba(19,20,24,.26);
+  opacity:.55;transform:scale(.92);transition:opacity .2s,transform .2s}
+.arc.center .go{opacity:1;transform:none}
+html[data-theme='dark'] .arc b{color:#f4f6fb;text-shadow:0 1px 2px rgba(0,0,0,.5)}
+html[data-theme='dark'] .arc span{color:#b7bdcf}
+html[data-theme='dark'] .arc .go{background:#f4f6fb;color:#131418}
+/* мягкая светлая «капсула» под центральной строкой */
+.arcpill{background:linear-gradient(90deg,rgba(255,255,255,.9),rgba(255,255,255,.62));
+  box-shadow:0 10px 30px rgba(40,44,70,.10),inset 0 1px 0 rgba(255,255,255,.9);opacity:.85}
+
+/* кнопка «Открыть» у крайних строк уезжает за край — прижимаем её и не даём обрезаться */
+.arc{padding-right:14px;overflow:visible}
+.arc .go{flex:none;white-space:nowrap}
+@media (max-width:420px){.arc b{font-size:17px}.arc span{font-size:12.5px}}
+
+/* «Открыть» показываем только у центральной строки — у крайних она уезжала за экран */
+.arc .go{opacity:0;pointer-events:none}
+.arc.center .go{opacity:1;pointer-events:auto}
+
 </style>
 </head>
 <body>
@@ -2572,13 +2601,46 @@ A.foldSave = () => {
   closeSheet(); toast('Папка «'+name+'» создана'); go('folders');
 };
 
+/* «Папки»: дни на дуге — крайние уходят в перспективу, центральный открыт.
+   Гашение мягкое (не ниже .62), чтобы название и дата всегда читались. */
+function arcRows(list){
+  if(!list.length) return '<div class="empty">Пока пусто. Создайте первый день кнопкой +</div>';
+  return list.map(d=>{const x=fmt(d.date),t=trk(d.track);
+    return `<div class="arc" data-id="${d.id}">
+      <button class="disc" data-a="open" data-v="${d.id}" style="background-image:url(${src(d.photos[0])});filter:${flt(d.filter).css}" aria-label="${esc(d.title)}"></button>
+      <span class="tx"><b>${esc(d.title)}</b><span>${x.d} ${x.m}${t?' · '+esc(t.a):''}</span></span>
+      <button class="go pill sk" data-a="open" data-v="${d.id}">Открыть</button></div>`}).join('');
+}
+function bendArc(){
+  const w=$('#arcw'); if(!w) return;
+  const r=w.getBoundingClientRect(), cy=r.top+r.height/2;
+  let best=null, bd=1e9;
+  w.querySelectorAll('.arc').forEach(el=>{
+    const b=el.getBoundingClientRect(), o=(b.top+b.height/2-cy)/(r.height/2), a=Math.abs(o);
+    el.style.transform=`translateX(${Math.min(96, a*a*82 + a*22)}px) rotate(${o*24}deg)`;
+    el.style.opacity = Math.max(.60, 1 - a*.34);   /* было .12 — текст исчезал */
+    el.classList.remove('center');
+    if(a<bd){bd=a;best=el}
+  });
+  if(best && bd<.25) best.classList.add('center');
+}
 SCREENS.folders=()=>{const sorted=[...DAYS].sort((a,b)=>b.date.localeCompare(a.date));
   app.innerHTML=`<section class="screen"><header class="topbar"><div class="logo" style="font-size:30px">Папки</div><div class="grow"></div><button class="ibtn" data-a="newFolder" aria-label="Создать папку">${IC.plus}</button></header>
   <label class="fsearch sk">${IC.search}<input id="fsearch" placeholder="Снег, море, Кино…"></label>
-  <div class="scroll" style="padding:6px 16px 120px" id="flist">${folderCards()}${folderNewCard()}${dayRows(sorted)}</div>${tabbar('folders')}</section>`;
-  $('#fsearch').addEventListener('input',e=>{const q=e.target.value.toLowerCase();
-    const f=sorted.filter(d=>(d.title+' '+d.note+' '+(trk(d.track)||{}).t+' '+(trk(d.track)||{}).a+' '+d.mood.join(' ')).toLowerCase().includes(q));
-    $('#flist').innerHTML=folderCards()+folderNewCard()+dayRows(f)})};
+  <div class="arcTop">${folderCards()}</div>
+  <div style="position:relative;flex:1;min-height:0;display:flex"><div class="arcpill sk"></div><div class="arcwrap" id="arcw">${arcRows(sorted)}</div></div>
+  ${tabbar('folders')}</section>`;
+  const w=$('#arcw');
+  w.style.paddingBlock=Math.max(0, w.clientHeight/2-52)+'px';
+  w.addEventListener('scroll', bendArc, {passive:true});
+  w.scrollTop=104;
+  requestAnimationFrame(bendArc);
+  $('#fsearch').addEventListener('input',e=>{
+    const q=e.target.value.toLowerCase();
+    const f=sorted.filter(d=>(d.title+' '+(d.note||'')+' '+(trk(d.track)||{}).t+' '+(trk(d.track)||{}).a+' '+(d.mood||[]).join(' ')).toLowerCase().includes(q));
+    w.innerHTML=arcRows(f); w.scrollTop=0; requestAnimationFrame(bendArc);
+  });
+};
 
 SCREENS.folder=()=>{const f=((typeof FOLDERS!=='undefined'&&FOLDERS)||window.FOLDERS||[]).find(x=>x.id===S.foldId);
   if(!f){go('folders');return}
